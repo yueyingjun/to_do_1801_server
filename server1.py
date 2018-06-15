@@ -32,7 +32,8 @@ def add ():
     uid=request.args.get("uid")
     cursor=db.cursor()
     val=request.args.get("val")
-    cursor.execute("insert into todo (val,state,edit,uid) values ('%s',%s,%s,%s)"%(val,0,0,uid))
+    did=request.args.get("did")
+    cursor.execute("insert into todo (val,state,edit,uid,did) values ('%s',%s,%s,%s,%s)"%(val,0,0,uid,did))
     db.commit()
     return "ok"
 
@@ -40,7 +41,8 @@ def add ():
 def select ():
     cursor=db.cursor()
     uid=request.args.get("uid")
-    sql="select * from todo where uid="+uid
+    did=request.args.get("did")
+    sql="select * from todo where uid="+uid+" and did="+did
     cursor.execute(sql)
     result=cursor.fetchall()
     return json.dumps(result)
@@ -102,6 +104,79 @@ def checkLogin():
         return json.dumps(arr)
     else:
         return json.dumps({"message":"error"})
+
+#添加目录
+@app.route("/ajax/adddir",methods=["GET"])
+def adddir():
+    name=request.args.get("name")
+    type=request.args.get("type")
+    uid=request.args.get("uid")
+    pid=request.args.get("pid")
+    edit=request.args.get("edit")
+    cursor = db.cursor()
+    sql="insert into dir (name,type,uid,pid,edit) values (%s,%s,%s,%s,%s)"
+    cursor.execute(sql,[name,type,uid,pid,edit])
+    inserid=db.insert_id()
+    db.commit()
+    return str(inserid)
+
+#目录的查询和获取
+@app.route("/ajax/selectdir",methods=["GET"])
+def selectdir():
+    uid=request.args.get("uid")
+    cursor = db.cursor()
+    sql="select * from dir where uid=%s"
+    cursor.execute(sql,[uid])
+    result=cursor.fetchall()
+    return json.dumps(result)
+
+# 目录的修改
+@app.route("/ajax/dirupdate",methods=["GET"])
+def dirupdate():
+    id = request.args.get("id")
+    attr = request.args.get("attr")
+    val = request.args.get("val")
+    cursor = db.cursor()
+    sql = "update dir set "+attr+"=%s where id=%s"
+    cursor.execute(sql, [val,id])
+    db.commit()
+    return "ok"
+
+# 删除目录
+
+@app.route("/ajax/deleteDir",methods=["GET"])
+def deleteDir():
+    ids=request.args.get("ids");
+    obj=json.loads(ids)
+    str1="("
+    str2="("
+    flag=True
+    for item in obj:
+        str1+=str(item["id"])+","
+        if(item["type"]==0):
+            flag=False
+            str2+=str(item["id"])+","
+    str1=str1[:-1]
+    str2=str2[:-1]
+    str1+=")"
+    str2+=")"
+    if flag:
+        str2="(0)"
+    cursor = db.cursor()
+    sql1="delete from dir where id in "+str1;
+    sql2="delete from todo where did in "+str2;
+
+    try:
+        cursor.execute(sql1)
+        cursor.execute(sql2)
+    except:
+        db.rollback()
+    else:
+        db.commit()
+
+    return "ok"
+
+
 
 app.run(host="0.0.0.0")
 
